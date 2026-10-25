@@ -82,6 +82,42 @@ java -jar target/ingestion-service.jar
 Listens on port `7050`. Currently just exposes `/health` — the actual CSV
 parsing/cleaning logic is a TODO.
 
+## What it does now
+
+`GET /hubs` returns the cleaned hubs as JSON, and `GET /health` returns `OK`.
+Raw rows go through these steps in order:
+
+1. **Clean each field.** IDs are trimmed and upper-cased. Names are trimmed,
+   have double spaces collapsed and are title-cased. Provinces are matched to
+   the nine real provinces, ignoring case, spaces and hyphens, so
+   `Kwa-Zulu Natal` and `KwaZulu Natal` both become `KwaZulu-Natal`. The
+   active flag accepts `Y/yes/true/1` and `N/no/false/0`.
+2. **Unknown stays unknown.** Placeholders (`unknown`, `N/A`) and unrecognised
+   values become `null`. They are never guessed.
+3. **Fill a blank province** only when every other row with the same sorting
+   center agrees on one province.
+4. **Merge duplicates.** Rows with the same sorting center and province are one
+   hub. The lowest hub ID is canonical and the others are kept as `aliases`,
+   so a lookup by an old ID can still be resolved by other services.
+5. **Resolve the active flag by majority vote.** On a tie, the lowest ID's value
+   wins.
+
+18 raw rows become 10 hubs.
+
+## Decisions and trade-offs
+
+- **Aliases instead of deleting duplicates.** Other services will look hubs up
+  by ID. Keeping the old IDs means none of them break.
+- **Majority vote.** One conflicting row among several shouldn't decide.
+- **Tie-break by lowest ID.** Arbitrary, but deterministic and tested.
+- **Not guessing.** A blank province stays null if the sorting center appears
+  in more than one province.
+- **There are no date columns** in this CSV, so no date handling was needed.
+
+## Tests
+
+    mvn test
+
 ## Test
 
 No automated tests yet. Manually verify it's up:
