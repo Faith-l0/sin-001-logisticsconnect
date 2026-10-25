@@ -1,5 +1,6 @@
 package co.wethinkcode.logisticsconnect;
 
+import co.wethinkcode.logisticsconnect.mq.MqConfig;
 import io.javalin.Javalin;
 import io.javalin.http.ConflictResponse;
 import io.javalin.http.NotFoundResponse;
@@ -9,10 +10,12 @@ import java.util.Map;
 public class TransitServiceApp {
 
     static final String HUB_SERVICE_URL = "http://localhost:7051";
-    static final String STAGE_SERVICE_URL = "http://localhost:7052";
 
     public static void main(String[] args) {
-        createApp(new HttpHubLookup(HUB_SERVICE_URL), new HttpStageLookup(STAGE_SERVICE_URL)).start(7053);
+        // Stage changes arrive as messages, so transit no longer calls delay-stage-service.
+        StageCache cache = new StageCache();
+        new ActiveMqStageSubscriber(MqConfig.BROKER_URL, MqConfig.TOPIC, cache).startInBackground();
+        createApp(new HttpHubLookup(HUB_SERVICE_URL), cache).start(7053);
     }
 
     /** Builds the app without starting it, so tests can pick their own port. */
