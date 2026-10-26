@@ -28,8 +28,7 @@ cleanup through synchronous REST calls to asynchronous MQ decoupling and alertin
 Plus [`common/`](common) (no port) — the shared ActiveMQ broker and MQ config notes
 for `package-status-topic`: Package status updates move from latency-driven RPC to bandwidth-driven messaging.
 
-**Status:** scaffold only — build files, Javalin bootstrap, and TODOs are in place; no
-business logic has been implemented yet.
+**Status:** stages 1-3 are implemented and tested (107 automated tests across four services). Stage 4 (AlertBot) was not attempted.
 
 ## Your task
 
@@ -146,34 +145,19 @@ cd alertbot && mvn package && java -jar target/alertbot.jar
 
 ## Test
 
-No automated tests exist yet (this is a scaffold). Each running service exposes
-`/health`, so sanity-check manually:
+Each module has its own tests. Run them from inside the module folder, because there is no parent pom:
 
-```
-curl http://localhost:7050/health   # -> OK
-```
+    cd ingestion-service && mvn test      # 33 tests
+    cd hub-service && mvn test            # 16 tests
+    cd delay-stage-service && mvn test    # 31 tests
+    cd transit-service && mvn test        # 27 tests
 
-To add real tests to a module, add JUnit 5 and Surefire to its `pom.xml`:
+The tests need no broker and no other services running.
 
-```xml
-<dependency>
-  <groupId>org.junit.jupiter</groupId>
-  <artifactId>junit-jupiter</artifactId>
-  <version>5.10.2</version>
-  <scope>test</scope>
-</dependency>
-```
+To check the whole system end to end, start the broker and the four services (see Run above), with transit-service started before delay-stage-service so its subscription exists. Then:
 
-```xml
-<plugin>
-  <groupId>org.apache.maven.plugins</groupId>
-  <artifactId>maven-surefire-plugin</artifactId>
-  <version>3.2.5</version>
-</plugin>
-```
+    curl localhost:7053/eta/H-500
+    curl -X POST localhost:7052/stage/H-500 -H 'Content-Type: application/json' -d '{"stage":3}'
+    curl localhost:7053/eta/H-500
 
-then add tests under that module's `src/test/java/...` and run:
-
-```
-mvn test
-```
+The second ETA should show stage 3 and a later arrival window. The message can be watched on the `package-status-topic` topic in the ActiveMQ console at http://localhost:8161 (admin / admin).
