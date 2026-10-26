@@ -1,17 +1,26 @@
 package co.wethinkcode.logisticsconnect;
 
+import co.wethinkcode.logisticsconnect.mq.MqConfig;
 import io.javalin.Javalin;
 
 public class AlertBotApp {
 
     public static void main(String[] args) {
-        Javalin app = Javalin.create().start(7054);
+        SimulatedSocialPoster poster = new SimulatedSocialPoster();
+        new ActiveMqAlertSubscriber(MqConfig.BROKER_URL, MqConfig.TOPIC, new AlertBot(poster))
+                .startInBackground();
+        createApp(poster).start(7054);
+    }
+
+    /** Builds the app without starting it, so tests can pick their own port. */
+    static Javalin createApp(SimulatedSocialPoster poster) {
+        Javalin app = Javalin.create();
 
         app.get("/health", ctx -> ctx.result("OK"));
 
-        // TODO (Posts proactive delay notifications to public transit social media pages (simulated).)
-        // Mechanism: Outbound webhook, simulated social post
+        // Everything the bot has "posted" so far, oldest first.
+        app.get("/alerts", ctx -> ctx.json(poster.posts()));
+
+        return app;
     }
 }
-
-// MQ TODO (stretch goal): subscribes to ActiveMQ topic MqConfig.TOPIC at MqConfig.BROKER_URL (see co.wethinkcode.logisticsconnect.mq.MqConfig)
