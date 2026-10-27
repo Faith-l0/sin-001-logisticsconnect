@@ -28,7 +28,7 @@ cleanup through synchronous REST calls to asynchronous MQ decoupling and alertin
 Plus [`common/`](common) (no port) — the shared ActiveMQ broker and MQ config notes
 for `package-status-topic`: Package status updates move from latency-driven RPC to bandwidth-driven messaging.
 
-**Status:** stages 1-3 are implemented and tested (107 automated tests across four services). Stage 4 (AlertBot) was not attempted.
+**Status:** all four stages are implemented and tested. Stage 4 (AlertBot) is the stretch goal and is done too.
 
 ## Your task
 
@@ -151,13 +151,15 @@ Each module has its own tests. Run them from inside the module folder, because t
     cd hub-service && mvn test            # 16 tests
     cd delay-stage-service && mvn test    # 31 tests
     cd transit-service && mvn test        # 27 tests
+    cd alertbot && mvn test               # 21 tests
 
 The tests need no broker and no other services running.
 
-To check the whole system end to end, start the broker and the four services (see Run above), with transit-service started before delay-stage-service so its subscription exists. Then:
+To check the whole system end to end, start the broker and the services (see Run above), with transit-service and alertbot started before delay-stage-service so their subscriptions exist. Then:
 
     curl localhost:7053/eta/H-500
-    curl -X POST localhost:7052/stage/H-500 -H 'Content-Type: application/json' -d '{"stage":3}'
+    curl -X POST localhost:7052/stage/H-500 -H 'Content-Type: application/json' -d '{"stage":7}'
     curl localhost:7053/eta/H-500
+    curl localhost:7054/alerts
 
-The second ETA should show stage 3 and a later arrival window. The message can be watched on the `package-status-topic` topic in the ActiveMQ console at http://localhost:8161 (admin / admin).
+The second ETA should show stage 7 and a later arrival window, and `/alerts` should list one delay alert. The messages can be watched on the `package-status-topic` topic in the ActiveMQ console at http://localhost:8161 (admin / admin).
