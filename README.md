@@ -116,24 +116,27 @@ find . -name pom.xml -execdir mvn -q package \;
 
 ## Run
 
-```
-# ingestion
-cd ingestion-service && mvn package && java -jar target/ingestion-service.jar
+Every service runs in its own terminal tab, because each one keeps running. From the repo root, start them in this order. The queue-aware services (transit-service and alertbot) must be running before delay-stage-service starts, so their subscriptions exist when the first message is sent.
 
-# domain services, each in its own terminal
-# terminal 1
-cd hub-service && mvn package && java -jar target/hub-service.jar
-# terminal 2
-cd delay-stage-service && mvn package && java -jar target/delay-stage-service.jar
-# terminal 3
-cd transit-service && mvn package && java -jar target/transit-service.jar
+    # 1. the ActiveMQ broker
+    cd common && docker compose up -d
 
-# MQ broker (needed once the MQ-aware services above are wired up)
-cd common && docker compose up -d
+    # 2. ingestion
+    cd ingestion-service && mvn package && java -jar target/ingestion-service.jar
 
-# alerting
-cd alertbot && mvn package && java -jar target/alertbot.jar
-```
+    # 3. hub-service
+    cd hub-service && mvn package && java -jar target/hub-service.jar
+
+    # 4. transit-service
+    cd transit-service && mvn package && java -jar target/transit-service.jar
+
+    # 5. alertbot
+    cd alertbot && mvn package && java -jar target/alertbot.jar
+
+    # 6. delay-stage-service (last)
+    cd delay-stage-service && mvn package && java -jar target/delay-stage-service.jar
+
+Add `-DskipTests` to `mvn package` to skip the tests and build faster.
 
 | Service | Port |
 |---|---|
